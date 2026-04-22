@@ -15,6 +15,10 @@ on:
 
 jobs:
   claude-review:
+    # Only review PRs authored by trusted users. This prevents strangers
+    # from burning the OAuth token's usage quota by opening PRs on this
+    # public repo.
+    if: contains(fromJSON('["dantonel"]'), github.event.pull_request.user.login)
     timeout-minutes: 15
     runs-on: ubuntu-latest
     permissions:

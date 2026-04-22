@@ -32,19 +32,29 @@ jobs:
               state: 'open',
               head: `${context.repo.owner}:${context.payload.workflow_run.head_branch}`
             });
-            if (runs.data.length > 0) {
-              return runs.data[0].number;
+            if (runs.data.length === 0) {
+              core.setOutput('number', '');
+              core.setOutput('author', '');
+              return;
             }
-            return null;
-          result-encoding: string
+            const pr = runs.data[0];
+            core.setOutput('number', String(pr.number));
+            core.setOutput('author', pr.user.login);
 
       - name: Post @claude comment
-        if: steps.find-pr.outputs.result != 'null'
+        # Only ping @claude if the PR was opened by a trusted user.
+        # Without this, a stranger's failing PR would cause the bot to
+        # post an @claude comment, which (because claude-bot-dom[bot] is
+        # in claude.yml's sender allowlist) would trigger @claude to
+        # work on the stranger's branch.
+        if: |
+          steps.find-pr.outputs.number != '' &&
+          contains(fromJSON('["dantonel"]'), steps.find-pr.outputs.author)
         uses: actions/github-script@v7
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
-            const prNumber = parseInt('${{ steps.find-pr.outputs.result }}');
+            const prNumber = parseInt('${{ steps.find-pr.outputs.number }}');
             const runUrl = '${{ github.event.workflow_run.html_url }}';
             await github.rest.issues.createComment({
               owner: context.repo.owner,
