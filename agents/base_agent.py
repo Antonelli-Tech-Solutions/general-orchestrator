@@ -45,6 +45,27 @@ class TransientError(Exception):
     pass
 
 
+class OutputContractError(Exception):
+    """Raised when an agent's output does not satisfy the expected output contract."""
+
+    def __init__(self, agent: str, task: str, expected: str, got_preview: str):
+        self.agent = agent
+        self.task = task
+        self.expected = expected
+        self.got_preview = got_preview
+        super().__init__(
+            f"[{agent}/{task}] Output contract violation — "
+            f"expected: {expected!r} — got: {got_preview!r}"
+        )
+
+
+class BaseAgent:
+    """Base class for orchestrator agents. Provides default output parsing."""
+
+    def parse_response(self, text: str) -> dict:
+        return {"response": text}
+
+
 def run_claude(prompt: str, allowed_tools: str = "Read,Edit,Bash", cwd: str = None, model: str = None) -> str:
     """
     Run `claude -p` non-interactively and return the text response.
