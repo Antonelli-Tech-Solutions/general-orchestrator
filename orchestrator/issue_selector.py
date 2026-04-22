@@ -32,11 +32,11 @@ def is_blocked(issue, repo) -> bool:
     return False
 
 def is_prioritized(issue) -> bool:
-    label_names = [l.name for l in issue.labels]
+    label_names = [lbl.name for lbl in issue.labels]
     return any(p in label_names for p in PRIORITY_ORDER)
 
 def priority_rank(issue) -> int:
-    label_names = [l.name for l in issue.labels]
+    label_names = [lbl.name for lbl in issue.labels]
     for i, p in enumerate(PRIORITY_ORDER):
         if p in label_names:
             return i

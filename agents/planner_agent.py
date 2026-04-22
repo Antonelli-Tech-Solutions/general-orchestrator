@@ -1,5 +1,5 @@
 # agents/planner_agent.py
-from agents.base_agent import run_claude, REPO_DIR, TransientError
+from agents.base_agent import run_claude, TransientError
 
 PLANNER_PROMPT = """\
 You are a technical planning agent for the Spades Online card game backend.
@@ -128,5 +128,5 @@ class PlannerAgent:
             except json.JSONDecodeError:
                 pass
         # Fall back to medium with no breakdown
-        print(f"[Planner] Warning: could not parse JSON response, defaulting to medium")
+        print("[Planner] Warning: could not parse JSON response, defaulting to medium")
         return {"size": "medium", "reasoning": "Could not parse planner response", "areas_affected": [], "sub_issues": []}

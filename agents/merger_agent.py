@@ -34,7 +34,7 @@ class MergerAgent:
                 check_runs = list(commit.get_check_runs())
 
                 if not check_runs:
-                    print(f"[Merger] No CI checks found — proceeding to merge.")
+                    print("[Merger] No CI checks found — proceeding to merge.")
                     return "success"
 
                 statuses = [run.status for run in check_runs]

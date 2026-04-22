@@ -1,12 +1,11 @@
 import asyncio
-import os
 import sys
 import warnings
 
 warnings.filterwarnings("ignore", message="Core Pydantic V1 functionality")
 
-from dotenv import load_dotenv
-from orchestrator.orchestrator import SpadesOrchestrator
+from dotenv import load_dotenv  # noqa: E402
+from orchestrator.orchestrator import SpadesOrchestrator  # noqa: E402
 
 load_dotenv()
 

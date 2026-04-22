@@ -166,7 +166,7 @@ class ReviewerAgent:
             except json.JSONDecodeError:
                 pass
 
-        print(f"[Reviewer] Warning: could not parse JSON response, treating as no findings")
+        print("[Reviewer] Warning: could not parse JSON response, treating as no findings")
         return {"findings": [], "summary": raw[:200]}
 
     def has_blocking_issues(self, review_result: dict) -> bool:
