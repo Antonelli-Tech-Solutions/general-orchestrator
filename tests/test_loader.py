@@ -1,8 +1,8 @@
-"""Unit tests for orchestrator/loader.py — registry loading (Task 1.4)."""
+"""Unit tests for orchestrator/loader.py — registry loading (Task 1.4) and prompt composition (Task 1.5)."""
 import pytest
 from pathlib import Path
 
-from orchestrator.loader import load_registry
+from orchestrator.loader import load_registry, compose_prompt, OUTPUT_CONTRACT_MARKER
 
 
 def _make_defaults(root: Path, agents_toml_content: str = "") -> None:
@@ -134,3 +134,208 @@ class TestLoadRegistryMissingPromptDir:
         _make_prompt_dir(tmp_path, "prompts/coder")
         result = load_registry(tmp_path, tmp_path / "target")
         assert "coder" in result["agents"]
+
+
+# ---------------------------------------------------------------------------
+# Helpers for compose_prompt tests
+# ---------------------------------------------------------------------------
+
+def _make_default_task(root: Path, agent: str, task: str, content: str) -> None:
+    task_dir = root / "defaults" / "prompts" / agent
+    task_dir.mkdir(parents=True, exist_ok=True)
+    (task_dir / f"{task}.md").write_text(content, encoding="utf-8")
+
+
+def _make_default_agents_md(root: Path, content: str) -> None:
+    (root / "defaults" / ".agents.md").write_text(content, encoding="utf-8")
+
+
+def _registry(identity: str = "") -> dict:
+    return {"agents": {"tester": {"identity": identity}}, "conventions": {}}
+
+
+# ---------------------------------------------------------------------------
+# compose_prompt tests (Task 1.5)
+# ---------------------------------------------------------------------------
+
+class TestComposePromptCompositionOrder:
+    """Verify all five parts appear in the correct order (PRD §4.3)."""
+
+    def test_all_parts_present_in_correct_order(self, tmp_path):
+        target = tmp_path / "target"
+        target.mkdir()
+        _make_defaults(tmp_path, "[conventions]\n")
+        _make_default_agents_md(
+            tmp_path,
+            "## @shared\nShared instructions.\n\n## @tester\nTester-specific instructions.\n",
+        )
+        default_task = (
+            "Do the task here.\n\n"
+            f"{OUTPUT_CONTRACT_MARKER}\n\n"
+            "Output: RESULT: <value>"
+        )
+        _make_default_task(tmp_path, "tester", "write-tests", default_task)
+
+        result = compose_prompt(
+            "tester",
+            "write-tests",
+            {"issue_number": "42"},
+            _registry("You are a tester agent."),
+            tmp_path,
+            target,
+        )
+
+        assert "You are a tester agent." in result
+        assert "Shared instructions." in result
+        assert "Tester-specific instructions." in result
+        assert "Do the task here." in result
+        assert OUTPUT_CONTRACT_MARKER in result
+        assert "Output: RESULT: <value>" in result
+        assert "Runtime Context" in result
+
+        pos_identity = result.index("You are a tester agent.")
+        pos_shared = result.index("Shared instructions.")
+        pos_tester = result.index("Tester-specific instructions.")
+        pos_task = result.index("Do the task here.")
+        pos_marker = result.index(OUTPUT_CONTRACT_MARKER)
+        pos_contract = result.index("Output: RESULT: <value>")
+        pos_context = result.index("Runtime Context")
+
+        assert pos_identity < pos_shared < pos_tester < pos_task
+        assert pos_task < pos_marker < pos_contract < pos_context
+
+    def test_empty_context_omits_runtime_context_section(self, tmp_path):
+        target = tmp_path / "target"
+        target.mkdir()
+        _make_defaults(tmp_path, "[conventions]\n")
+        _make_default_task(tmp_path, "tester", "write-tests", "Body.")
+
+        result = compose_prompt("tester", "write-tests", {}, _registry(), tmp_path, target)
+
+        assert "Runtime Context" not in result
+
+    def test_missing_identity_omits_identity_section(self, tmp_path):
+        target = tmp_path / "target"
+        target.mkdir()
+        _make_defaults(tmp_path, "[conventions]\n")
+        _make_default_task(tmp_path, "tester", "write-tests", "Body.")
+
+        result = compose_prompt("tester", "write-tests", {}, _registry(""), tmp_path, target)
+
+        assert result.startswith("Body.")
+
+
+class TestComposePromptOutputContractIsUnoverridable:
+    """Verify the output contract always comes from orchestrator defaults (PRD H2)."""
+
+    def test_target_task_without_marker_still_gets_default_contract(self, tmp_path):
+        target = tmp_path / "target"
+        target.mkdir()
+        _make_defaults(tmp_path, "[conventions]\n")
+        _make_default_task(
+            tmp_path,
+            "tester",
+            "write-tests",
+            f"Default body.\n\n{OUTPUT_CONTRACT_MARKER}\n\nOutput: DEFAULT_CONTRACT",
+        )
+        target_prompts = target / "prompts" / "tester"
+        target_prompts.mkdir(parents=True)
+        (target_prompts / "write-tests.md").write_text(
+            "Target body, no marker.", encoding="utf-8"
+        )
+
+        result = compose_prompt("tester", "write-tests", {}, _registry(), tmp_path, target)
+
+        assert "Target body, no marker." in result
+        assert "Default body." not in result
+        assert "Output: DEFAULT_CONTRACT" in result
+
+    def test_target_task_with_marker_uses_default_contract_not_its_own(self, tmp_path):
+        target = tmp_path / "target"
+        target.mkdir()
+        _make_defaults(tmp_path, "[conventions]\n")
+        _make_default_task(
+            tmp_path,
+            "tester",
+            "write-tests",
+            f"Default body.\n\n{OUTPUT_CONTRACT_MARKER}\n\nOutput: DEFAULT_CONTRACT",
+        )
+        target_prompts = target / "prompts" / "tester"
+        target_prompts.mkdir(parents=True)
+        (target_prompts / "write-tests.md").write_text(
+            f"Target body.\n\n{OUTPUT_CONTRACT_MARKER}\n\nOutput: TARGET_CONTRACT",
+            encoding="utf-8",
+        )
+
+        result = compose_prompt("tester", "write-tests", {}, _registry(), tmp_path, target)
+
+        assert "Target body." in result
+        assert "Output: DEFAULT_CONTRACT" in result
+        assert "Output: TARGET_CONTRACT" not in result
+
+
+class TestComposePromptMissingDefaultTaskFile:
+    def test_raises_file_not_found_naming_agent_and_task(self, tmp_path):
+        target = tmp_path / "target"
+        target.mkdir()
+        _make_defaults(tmp_path, "[conventions]\n")
+        _make_prompt_dir(tmp_path, "prompts/tester")
+        # Deliberately do NOT create the task file.
+
+        with pytest.raises(FileNotFoundError, match="write-tests"):
+            compose_prompt("tester", "write-tests", {}, _registry(), tmp_path, target)
+
+
+class TestComposePromptAgentsMdCascade:
+    """Verify the .agents.md cascade: default first, then target, @shared + @<agent>."""
+
+    def test_extracts_shared_and_agent_sections_from_default_agents_md(self, tmp_path):
+        target = tmp_path / "target"
+        target.mkdir()
+        _make_defaults(tmp_path, "[conventions]\n")
+        _make_default_agents_md(
+            tmp_path,
+            "## @shared\nDefault shared.\n\n## @tester\nDefault tester rules.\n",
+        )
+        _make_default_task(tmp_path, "tester", "write-tests", "Body.")
+
+        result = compose_prompt("tester", "write-tests", {}, _registry(), tmp_path, target)
+
+        assert "Default shared." in result
+        assert "Default tester rules." in result
+
+    def test_target_agents_md_appended_after_default_and_before_task_body(self, tmp_path):
+        target = tmp_path / "target"
+        target.mkdir()
+        _make_defaults(tmp_path, "[conventions]\n")
+        _make_default_agents_md(tmp_path, "## @shared\nDefault shared.\n")
+        (target / ".agents.md").write_text(
+            "## @shared\nTarget shared.\n\n## @tester\nTarget tester rules.\n",
+            encoding="utf-8",
+        )
+        _make_default_task(tmp_path, "tester", "write-tests", "Task body.")
+
+        result = compose_prompt("tester", "write-tests", {}, _registry(), tmp_path, target)
+
+        assert "Default shared." in result
+        assert "Target shared." in result
+        assert "Target tester rules." in result
+        # Default cascade comes before target cascade
+        assert result.index("Default shared.") < result.index("Target shared.")
+        # Both cascade sections come before task body
+        assert result.index("Target tester rules.") < result.index("Task body.")
+
+    def test_unrelated_agent_sections_are_not_included(self, tmp_path):
+        target = tmp_path / "target"
+        target.mkdir()
+        _make_defaults(tmp_path, "[conventions]\n")
+        _make_default_agents_md(
+            tmp_path,
+            "## @shared\nShared rules.\n\n## @coder\nCoder-only rules.\n",
+        )
+        _make_default_task(tmp_path, "tester", "write-tests", "Body.")
+
+        result = compose_prompt("tester", "write-tests", {}, _registry(), tmp_path, target)
+
+        assert "Shared rules." in result
+        assert "Coder-only rules." not in result
