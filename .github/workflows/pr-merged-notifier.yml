@@ -55,12 +55,18 @@ jobs:
               ...comments.data.map(c => c.body)
             ];
 
-            const hasHandoff = allText.some(text =>
-              text.toLowerCase().includes('when this issue is completed')
-            );
+            // Find handoff line and extract target issue number
+            let nextIssueNumber = null;
+            for (const text of allText) {
+              const m = text.match(/when this issue is completed,?\s*assign\s+issue\s+#(\d+)\s+to\s+(\S+)/i);
+              if (m) {
+                nextIssueNumber = parseInt(m[1]);
+                break;
+              }
+            }
 
-            if (!hasHandoff) {
-              console.log('No handoff instruction found in issue body, skipping');
+            if (!nextIssueNumber) {
+              console.log('No handoff instruction found, skipping');
               return;
             }
 
@@ -68,5 +74,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issueNumber,
-              body: `@claude PR #${prNumber} has been merged. Please look at this issue body for the "When this issue is completed, assign Issue #XYZ to dantonel" instruction and carry it out now using: \`gh issue edit <issue-number> --add-assignee dantonel\``
+              body: `@claude PR #${prNumber} has been merged. Please run:\n\n\`\`\`\ngh issue edit ${nextIssueNumber} --add-assignee dantonel\n\`\`\`\n\nto hand off to the next task.`
             });

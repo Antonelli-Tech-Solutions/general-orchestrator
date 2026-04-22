@@ -32,10 +32,21 @@ This directory contains everything needed to run the orchestrator refactor as a 
 ## Kicking off the refactor
 
 1. Create one GitHub Issue using the content of `docs/bootstrap-issue.md` as the body. Title it `Bootstrap: create issues for refactor tasks`.
-2. Assign the bootstrap issue to `dantonel`. This triggers the `@claude` workflow (because of the `@claude` mention in the body plus the `assignee_trigger: dantonel` config in `claude.yml`).
-3. `@claude` will create ~26 individual task issues with handoff lines chaining them together.
-4. Once `@claude` posts the summary comment on the bootstrap issue, assign **Task 1.1** to `dantonel` to start real implementation.
-5. From then on: each merged PR triggers `pr-merged-notifier.yml`, which reads the "When this issue is completed…" line and pings `@claude` on the next issue.
+2. Assign the bootstrap issue to `dantonel`. This fires the `claude.yml` workflow via the `issues.assigned` event + `assignee.login == 'dantonel'` condition — no `@claude` mention is required (though the bootstrap body contains one anyway, belt-and-braces).
+3. `@claude` will create ~26 individual task issues with handoff lines chaining them together, then post a summary comment on the bootstrap issue.
+4. Once the summary is posted, assign **Task 1.1** to `dantonel`. This re-fires `claude.yml` for the first real task. From then on: each merged PR triggers `pr-merged-notifier.yml`, which posts an `@claude` comment on the completed issue telling it to `gh issue edit --add-assignee dantonel` on the next task — and that assignment fires `claude.yml` on the next task automatically.
+
+## Trigger logic, spelled out
+
+`claude.yml` runs under any of these conditions:
+- A comment containing `@claude` is posted on any issue or PR.
+- A review body contains `@claude`.
+- An issue is **assigned to `dantonel`** (no `@claude` mention needed).
+- An issue is **opened** with `@claude` in the title or body.
+
+That last two bullets are the important ones for this refactor:
+- The bootstrap issue triggers via `opened` + `@claude`-in-body, *or* via `assigned`-to-dantonel. Either works.
+- Task issues created by the bootstrap do **not** contain `@claude` (by design — they're template-like). They trigger only via assignment, which is exactly what the `pr-merged-notifier` chain produces.
 
 ## What each workflow does
 

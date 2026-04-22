@@ -15,7 +15,8 @@ jobs:
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (github.event_name == 'issues' && github.event.action == 'assigned' && github.event.assignee.login == 'dantonel') ||
+      (github.event_name == 'issues' && github.event.action == 'opened' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -59,7 +60,7 @@ jobs:
           github_token: ${{ steps.app-token.outputs.token }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           assignee_trigger: "dantonel"
-          claude_args: '--allowedTools "Bash(gh issue create *),Bash(gh pr create *),Bash(gh pr merge *),Bash(git status),Bash(git log *),Bash(gh issue close *),Bash(gh issue comment *),Bash(gh issue list *),Bash(gh issue edit *),Bash(gh label *),Bash(gh label create *),Bash(pip install *),Bash(pytest *),Bash(python -m pytest *),Bash(python -m pip install *),Bash(grep *),Bash(ls *)"'
+          claude_args: '--allowedTools "Bash(gh issue create *),Bash(gh pr create *),Bash(gh pr merge *),Bash(gh pr view *),Bash(gh pr checks *),Bash(gh pr comment *),Bash(gh run view *),Bash(gh run list *),Bash(git status),Bash(git log *),Bash(git diff *),Bash(gh issue close *),Bash(gh issue comment *),Bash(gh issue list *),Bash(gh issue edit *),Bash(gh issue view *),Bash(gh label *),Bash(gh label create *),Bash(pip install *),Bash(pytest *),Bash(python -m pytest *),Bash(python -m pip install *),Bash(grep *),Bash(ls *)"'
           base_branch: main
           additional_permissions: |
             actions: read
