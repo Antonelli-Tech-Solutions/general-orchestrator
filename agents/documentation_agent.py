@@ -1,6 +1,15 @@
 import subprocess
+from pathlib import Path
 
-from agents.base_agent import run_claude, RateLimitError, PromptTooLongError, TransientError, REPO_DIR  # noqa: F401
+from agents.base_agent import (
+    BaseAgent, OutputContractError, run_claude,
+    RateLimitError, PromptTooLongError, TransientError, REPO_DIR  # noqa: F401
+)
+from orchestrator.loader import compose_prompt, load_registry
+
+
+_ORCHESTRATOR_ROOT = Path(__file__).parent.parent
+_TARGET_ROOT = Path(REPO_DIR)
 
 
 def run_git(args: list[str]):
@@ -15,30 +24,28 @@ def run_git(args: list[str]):
     return result.stdout.strip()
 
 
-PROMPT_TEMPLATE = """\
-You are a documentation agent for the Spades Online card game.
+class DocumentationAgent(BaseAgent):
+    def parse_response(self, text: str) -> dict:
+        if text.strip() == "NO_CHANGES":
+            return {"files_updated": []}
 
-Review the following code changes and update any documentation files that need to reflect them.
+        files_updated = []
+        for line in text.splitlines():
+            if line.startswith("UPDATED:"):
+                path = line[len("UPDATED:"):].strip()
+                if path:
+                    files_updated.append(path)
 
-Code changes (git diff --stat):
-{code_changes}
+        if files_updated:
+            return {"files_updated": files_updated}
 
-Documentation files to consider updating:
-- README.md — if new features, setup steps, or environment variables changed
-- docs/api.md — if HTTP routes were added, removed, or changed
-- docs/websocket.md — if WebSocket events were added, removed, or changed
+        raise OutputContractError(
+            agent="docs-writer",
+            task="document",
+            expected="NO_CHANGES or one or more UPDATED: <path> lines",
+            got_preview=text[:200],
+        )
 
-Instructions:
-- Read each documentation file first to understand its current state.
-- Only edit files that genuinely need updating — don't touch unaffected docs.
-- Write the full updated content of any file you change using the Edit tool.
-- If no documentation changes are needed, output exactly: NO_CHANGES
-- Otherwise, after writing all files, output exactly one line per file changed:
-  UPDATED: <relative/path/to/file.md>
-"""
-
-
-class DocumentationAgent:
     async def run(self, context: dict) -> dict:
         issue_number = context.get("issue_number")
         code_changes = context.get("code_changes", "")
@@ -50,23 +57,19 @@ class DocumentationAgent:
 
         print(f"[Docs] Checking documentation for issue #{issue_number}...")
 
-        prompt = PROMPT_TEMPLATE.format(code_changes=code_changes)
+        registry = load_registry(_ORCHESTRATOR_ROOT, _TARGET_ROOT)
+        prompt = compose_prompt(
+            "docs-writer", "document", context, registry, _ORCHESTRATOR_ROOT, _TARGET_ROOT
+        )
 
         # Claude Code runs in REPO_DIR so it can read and write doc files directly
         response = run_claude(prompt, allowed_tools="Read,Edit,Bash", model="claude-sonnet-4-6")
 
-        if response.strip() == "NO_CHANGES":
-            print("[Docs] No documentation changes needed.")
-            return {"agent": "documentation", "issue_number": issue_number, "files_updated": []}
-
-        # Parse UPDATED: lines to know which files were changed
-        files_updated = []
-        for line in response.splitlines():
-            if line.startswith("UPDATED:"):
-                files_updated.append(line[len("UPDATED:"):].strip())
+        parsed = self.parse_response(response)
+        files_updated = parsed["files_updated"]
 
         if not files_updated:
-            print("[Docs] No UPDATED lines found — assuming no changes.")
+            print("[Docs] No documentation changes needed.")
             return {"agent": "documentation", "issue_number": issue_number, "files_updated": []}
 
         for f in files_updated:

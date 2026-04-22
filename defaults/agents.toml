@@ -7,3 +7,9 @@ identity = "You are a test-writing agent that produces well-structured, independ
 model = "claude-sonnet-4-6"
 tools = ["Read", "Edit", "Bash"]
 tasks = ["write-tests"]
+
+[agents."docs-writer"]
+identity = "You are a documentation agent that reviews code changes and keeps project documentation up to date."
+model = "claude-sonnet-4-6"
+tools = ["Read", "Edit", "Bash"]
+tasks = ["document"]
