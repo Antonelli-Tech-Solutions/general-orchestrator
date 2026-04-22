@@ -1,28 +1,16 @@
 import os
 import subprocess
-from agents.base_agent import run_claude, RateLimitError, PromptTooLongError, TransientError, REPO_DIR  # noqa: F401
+from pathlib import Path
 
-PROMPT_TEMPLATE = """\
-You are a test-writing agent for the Spades Online card game backend.
+from agents.base_agent import (
+    BaseAgent, OutputContractError, run_claude,
+    RateLimitError, PromptTooLongError, TransientError, REPO_DIR  # noqa: F401
+)
+from orchestrator.loader import compose_prompt, load_registry
 
-Write comprehensive tests for this GitHub issue, following TDD principles.
 
-Issue #{issue_number}:
-{issue_description}
-
-Instructions:
-- Read the existing test directories first to understand the patterns and conventions.
-- Decide the correct test file path based on what is being tested:
-  - Game logic → test/unit/game/
-  - API routes → test/integration/
-  - WebSocket events → test/integration/
-- Use Node's built-in test runner (node:test and node:assert).
-- Test both happy paths and edge/error cases.
-- Each test must be independent.
-- Write the test file to disk at the correct path using the Edit tool.
-- After writing, output exactly one line in this format:
-  TEST_FILE: <relative/path/to/test/file.test.js>
-"""
+_ORCHESTRATOR_ROOT = Path(__file__).parent.parent
+_TARGET_ROOT = Path(REPO_DIR)
 
 
 def run_git(args: list[str]):
@@ -34,40 +22,40 @@ def run_git(args: list[str]):
         encoding="utf-8",
     )
     if result.returncode != 0:
-        # Include stderr in error but don't fail on non-empty stderr alone —
-        # git writes hints and warnings to stderr even on success
         raise RuntimeError(f"git {' '.join(args)} failed (exit {result.returncode}):\n{result.stderr}")
     return result.stdout.strip()
 
 
-class TestAgent:
+class TestAgent(BaseAgent):
+    def parse_response(self, text: str) -> dict:
+        for line in text.splitlines():
+            if line.startswith("TEST_FILE:"):
+                path = line[len("TEST_FILE:"):].strip()
+                if path:
+                    return {"test_file_path": path}
+        raise OutputContractError(
+            agent="tester",
+            task="write-tests",
+            expected="TEST_FILE: <path>",
+            got_preview=text[:200],
+        )
+
     async def run(self, context: dict) -> dict:
         issue_number = context["issue_number"]
-        issue_description = context.get("issue_body", "")
-
         print(f"[Test] Writing tests for issue #{issue_number}...")
 
-        prompt = PROMPT_TEMPLATE.format(
-            issue_number=issue_number,
-            issue_description=issue_description,
+        registry = load_registry(_ORCHESTRATOR_ROOT, _TARGET_ROOT)
+        enriched = {**context, "issue_description": context.get("issue_body", "")}
+        prompt = compose_prompt(
+            "tester", "write-tests", enriched, registry, _ORCHESTRATOR_ROOT, _TARGET_ROOT
         )
 
         response = run_claude(prompt, allowed_tools="Read,Edit,Bash", model="claude-sonnet-4-6")
 
-        # Parse the TEST_FILE line Claude outputs
-        test_file_path = None
-        for line in response.splitlines():
-            if line.startswith("TEST_FILE:"):
-                test_file_path = line[len("TEST_FILE:"):].strip()
-                break
+        parsed = self.parse_response(response)
+        test_file_path = parsed["test_file_path"]
+        print(f"[Test] Tests written to {test_file_path}")
 
-        if not test_file_path:
-            test_file_path = f"test/unit/issue-{issue_number}.test.js"
-            print(f"[Test] Warning: could not parse TEST_FILE, using {test_file_path}")
-        else:
-            print(f"[Test] Tests written to {test_file_path}")
-
-        # Read the file Claude wrote
         abs_path = os.path.join(REPO_DIR, test_file_path)
         test_code = ""
         if os.path.exists(abs_path):
@@ -75,9 +63,6 @@ class TestAgent:
                 test_code = f.read()
         else:
             print(f"[Test] Warning: expected test file not found at {abs_path}")
-
-        # Tests are returned to the coder agent which writes them to the issue
-        # branch before implementing. No commit to dev needed.
 
         return {
             "agent": "test",
