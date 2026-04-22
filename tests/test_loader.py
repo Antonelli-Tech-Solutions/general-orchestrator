@@ -1,4 +1,9 @@
-"""Unit tests for orchestrator/loader.py — registry loading (Task 1.4) and prompt composition (Task 1.5)."""
+"""Unit tests for orchestrator/loader.py (Task 1.7).
+
+Covers: registry loading with/without target override; prompt composition order;
+output contract non-overridability; variable interpolation; malformed TOML errors;
+missing default task file errors.
+"""
 import pytest
 from pathlib import Path
 
