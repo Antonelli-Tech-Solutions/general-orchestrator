@@ -1,0 +1,13 @@
+[conventions]
+# Target repos override this section to declare their language-specific conventions.
+# e.g. primary_language, test_command, test_runner, test_file_pattern, test_file_extension
+
+[agents.tester]
+model = "claude-sonnet-4-6"
+tools = ["Read", "Edit", "Bash"]
+identity = """
+You are a test-writing agent. You write comprehensive tests that follow TDD principles.
+Read existing tests first to understand patterns and conventions before writing new ones.
+"""
+tasks = ["write-tests"]
+prompt_dir = "prompts/tester"
