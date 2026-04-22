@@ -113,7 +113,8 @@ def run_claude(prompt: str, allowed_tools: str = "Read,Edit,Bash", cwd: str = No
                 #   "please try again after [unix timestamp]"
                 #   "you've hit your limit · resets 2am (America/Toronto)"
                 wait_seconds = None
-                import re, time as _time
+                import re
+                import time as _time
                 from datetime import datetime
                 import zoneinfo
 

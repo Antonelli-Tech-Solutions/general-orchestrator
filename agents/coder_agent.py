@@ -3,7 +3,6 @@ import subprocess
 
 from agents.base_agent import run_claude, REPO_DIR, TransientError
 from github import Github
-from github.GithubException import GithubException
 
 
 def get_repo():
@@ -331,8 +330,8 @@ class CoderAgent:
             if restore_status:
                 run_git(["add", ".gitignore"])
                 run_git(["commit", "--amend", "--no-edit"])
-                print(f"[Coder] Warning: .gitignore was modified by Claude — restored, "
-                      f"removed node_modules from tracking, and amended commit.")
+                print("[Coder] Warning: .gitignore was modified by Claude — restored, "
+                      "removed node_modules from tracking, and amended commit.")
         except RuntimeError:
             pass  # .gitignore doesn't exist in default branch either — nothing to restore
 
@@ -502,7 +501,7 @@ class CoderAgent:
             run_git(["config", "user.name", "Spades Orchestrator"])
             # Set origin/HEAD so symbolic-ref can resolve the default branch
             run_git(["remote", "set-head", "origin", "--auto"])
-            print(f"[Coder] Repo cloned.")
+            print("[Coder] Repo cloned.")
         else:
             print(f"[Coder] Using existing repo at {REPO_DIR}.")
 
@@ -526,7 +525,7 @@ class CoderAgent:
         print(f"[Coder] Rebasing {branch} onto origin/{default}...")
         try:
             run_git(["rebase", f"origin/{default}"])
-            print(f"[Coder] Rebase succeeded cleanly.")
+            print("[Coder] Rebase succeeded cleanly.")
             return True
         except RuntimeError as e:
             if "CONFLICT" not in str(e) and "conflict" not in str(e).lower():
@@ -535,7 +534,7 @@ class CoderAgent:
                 return False
 
         # There are conflicts — ask Claude to resolve them
-        print(f"[Coder] Merge conflicts detected — asking Claude to resolve...")
+        print("[Coder] Merge conflicts detected — asking Claude to resolve...")
 
         conflict_prompt = f"""You are a coding agent for the Spades Online card game backend.
 
@@ -565,10 +564,10 @@ Instructions:
         )
 
         if "REBASE: success" in response:
-            print(f"[Coder] Claude resolved merge conflicts successfully.")
+            print("[Coder] Claude resolved merge conflicts successfully.")
             return True
         else:
-            print(f"[Coder] Claude could not resolve conflicts — aborting rebase.")
+            print("[Coder] Claude could not resolve conflicts — aborting rebase.")
             try:
                 run_git(["rebase", "--abort"])
             except RuntimeError:

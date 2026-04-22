@@ -5,7 +5,6 @@ from github import Github
 from github.GithubException import GithubException
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import interrupt, Command
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from agents.planner_agent import PlannerAgent
 from agents.test_agent import TestAgent
@@ -522,8 +521,8 @@ async def node_escalate(state: IssueState) -> dict:
         try:
             parent_issue = repo.get_issue(issue_number)
             priority_labels = [
-                l.name for l in parent_issue.labels
-                if l.name.startswith("priority:")
+                lbl.name for lbl in parent_issue.labels
+                if lbl.name.startswith("priority:")
             ]
         except Exception:
             priority_labels = ["priority:medium"]
@@ -688,11 +687,11 @@ def route_needs_tests(state: IssueState) -> Literal[
     """Run test agent unless issue has 'skip-tests' label."""
     repo = get_repo()
     issue = repo.get_issue(state["issue_number"])
-    skip = any(l.name == "skip-tests" for l in issue.labels)
+    skip = any(lbl.name == "skip-tests" for lbl in issue.labels)
     if skip:
-        print(f"[Graph] Skipping test agent — 'skip-tests' label present.")
+        print("[Graph] Skipping test agent — 'skip-tests' label present.")
     else:
-        print(f"[Graph] Running test agent (add 'skip-tests' label to bypass).")
+        print("[Graph] Running test agent (add 'skip-tests' label to bypass).")
     return "node_run_coder" if skip else "node_run_tests"
 
 

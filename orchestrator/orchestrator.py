@@ -170,7 +170,7 @@ class SpadesOrchestrator:
                         except TransientError:
                             pass  # Will be caught on next loop iteration
 
-                except PromptTooLongError as e:
+                except PromptTooLongError:
                     print(
                         f"[Orchestrator] Prompt too long even after truncation — "
                         f"escalating issue "
@@ -237,7 +237,7 @@ class SpadesOrchestrator:
             try:
                 repo = get_repo()
                 issue = repo.get_issue(issue_number)
-                current_labels = [l.name for l in issue.labels]
+                current_labels = [lbl.name for lbl in issue.labels]
                 if "needs-approval" in current_labels:
                     issue.remove_from_labels("needs-approval")
             except Exception as e:

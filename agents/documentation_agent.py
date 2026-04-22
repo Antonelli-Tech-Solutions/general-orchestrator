@@ -1,4 +1,3 @@
-import os
 import subprocess
 
 from agents.base_agent import run_claude, RateLimitError, PromptTooLongError, TransientError, REPO_DIR  # noqa: F401
