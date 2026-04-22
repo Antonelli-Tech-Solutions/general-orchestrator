@@ -1,0 +1,72 @@
+name: PR Merged Notifier
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  notify:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'claude/')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: read
+
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Find linked issue and notify
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const prBody = context.payload.pull_request.body || '';
+            const prNumber = context.payload.pull_request.number;
+
+            const match = prBody.match(/(?:closes|fixes|resolves|issue)\s+#(\d+)/i);
+            if (!match) {
+              console.log('No linked issue found in PR body');
+              return;
+            }
+
+            const issueNumber = parseInt(match[1]);
+
+            // Get issue and all comments
+            const issue = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber
+            });
+
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber
+            });
+
+            // Check issue body and all comments for handoff instruction
+            const allText = [
+              issue.data.body || '',
+              ...comments.data.map(c => c.body)
+            ];
+
+            const hasHandoff = allText.some(text =>
+              text.toLowerCase().includes('when this issue is completed')
+            );
+
+            if (!hasHandoff) {
+              console.log('No handoff instruction found in issue body, skipping');
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: `@claude PR #${prNumber} has been merged. Please look at this issue body for the "When this issue is completed, assign Issue #XYZ to dantonel" instruction and carry it out now using: \`gh issue edit <issue-number> --add-assignee dantonel\``
+            });
