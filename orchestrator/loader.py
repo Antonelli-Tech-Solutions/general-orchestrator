@@ -91,6 +91,18 @@ def _extract_agents_md_sections(content: str, agent: str) -> str:
     return "\n\n".join(parts)
 
 
+def interpolate(text: str, variables: dict, prompt_filename: str | None = None) -> str:
+    """Substitute {{variable}} placeholders with values from variables."""
+    def _replace(match: re.Match) -> str:
+        name = match.group(1)
+        if name not in variables:
+            suffix = f" ({prompt_filename})" if prompt_filename else ""
+            raise ValueError(f"Undefined variable {{{{{name}}}}}{suffix} in prompt")
+        return str(variables[name])
+
+    return re.sub(r"\{\{(\w+)\}\}", _replace, text)
+
+
 def compose_prompt(
     agent: str,
     task: str,
@@ -169,4 +181,5 @@ def compose_prompt(
         context_lines = "\n".join(f"{k}: {v}" for k, v in context.items())
         parts.append(f"## Runtime Context\n\n{context_lines}")
 
-    return "\n\n".join(parts)
+    variables = {**registry.get("conventions", {}), **context}
+    return interpolate("\n\n".join(parts), variables, prompt_filename=str(default_task_file))

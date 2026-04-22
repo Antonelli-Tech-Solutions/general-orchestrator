@@ -2,7 +2,7 @@
 import pytest
 from pathlib import Path
 
-from orchestrator.loader import load_registry, compose_prompt, OUTPUT_CONTRACT_MARKER
+from orchestrator.loader import load_registry, compose_prompt, interpolate, OUTPUT_CONTRACT_MARKER
 
 
 def _make_defaults(root: Path, agents_toml_content: str = "") -> None:
@@ -339,3 +339,64 @@ class TestComposePromptAgentsMdCascade:
 
         assert "Shared rules." in result
         assert "Coder-only rules." not in result
+
+
+# ---------------------------------------------------------------------------
+# interpolate tests (Task 1.6)
+# ---------------------------------------------------------------------------
+
+class TestInterpolate:
+    def test_substitutes_double_brace_variable(self):
+        assert interpolate("run {{test_command}}", {"test_command": "pytest"}) == "run pytest"
+
+    def test_raises_value_error_naming_missing_variable(self):
+        with pytest.raises(ValueError, match="missing"):
+            interpolate("hi {{missing}}", {})
+
+    def test_single_braces_pass_through_unchanged(self):
+        text = '{"key": "value"}'
+        assert interpolate(text, {}) == text
+
+    def test_multiple_variables_all_substituted(self):
+        result = interpolate("{{a}} and {{b}}", {"a": "foo", "b": "bar"})
+        assert result == "foo and bar"
+
+    def test_prompt_filename_included_in_error_message(self):
+        with pytest.raises(ValueError, match="myfile.md"):
+            interpolate("{{missing}}", {}, prompt_filename="myfile.md")
+
+    def test_no_placeholders_returns_text_unchanged(self):
+        text = "nothing to replace here"
+        assert interpolate(text, {}) == text
+
+
+class TestComposePromptInterpolation:
+    def test_conventions_substituted_into_prompt(self, tmp_path):
+        target = tmp_path / "target"
+        target.mkdir()
+        _make_defaults(tmp_path, "[conventions]\n")
+        registry = {
+            "agents": {"tester": {"identity": ""}},
+            "conventions": {"test_command": "pytest"},
+        }
+        _make_default_task(tmp_path, "tester", "write-tests", "Run {{test_command}} to test.")
+
+        result = compose_prompt("tester", "write-tests", {}, registry, tmp_path, target)
+
+        assert "Run pytest to test." in result
+
+    def test_explicit_context_overrides_conventions(self, tmp_path):
+        target = tmp_path / "target"
+        target.mkdir()
+        _make_defaults(tmp_path, "[conventions]\n")
+        registry = {
+            "agents": {"tester": {"identity": ""}},
+            "conventions": {"test_command": "jest"},
+        }
+        _make_default_task(tmp_path, "tester", "write-tests", "Run {{test_command}} to test.")
+
+        result = compose_prompt(
+            "tester", "write-tests", {"test_command": "pytest"}, registry, tmp_path, target
+        )
+
+        assert "Run pytest to test." in result
