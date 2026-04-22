@@ -157,14 +157,19 @@ class ReviewerAgent:
         except json.JSONDecodeError:
             pass
 
-        # Strategy 3: find the first { and last } and extract that substring
-        start = raw.find("{")
-        end = raw.rfind("}") + 1
-        if start != -1 and end > start:
-            try:
-                return json.loads(raw[start:end])
-            except json.JSONDecodeError:
-                pass
+        # Strategy 3: scan for the first parseable JSON object in the string.
+        # Uses raw_decode to avoid false positives from { in code snippets
+        # (e.g. JS template literals like `${variable}`) that would cause
+        # find/rfind substring extraction to grab the wrong range.
+        decoder = json.JSONDecoder()
+        for text in (raw, clean):
+            for i, ch in enumerate(text):
+                if ch == '{':
+                    try:
+                        obj, _ = decoder.raw_decode(text, i)
+                        return obj
+                    except json.JSONDecodeError:
+                        continue
 
         print("[Reviewer] Warning: could not parse JSON response, treating as no findings")
         return {"findings": [], "summary": raw[:200]}
