@@ -6,7 +6,7 @@ from github.GithubException import GithubException
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import interrupt, Command
 
-from agents.planner_agent import PlannerAgent
+from agents.issue_decomposer_agent import IssueDecomposerAgent
 from agents.test_agent import TestAgent
 from agents.coder_agent import CoderAgent, find_existing_pr
 from agents.reviewer_agent import ReviewerAgent
@@ -28,7 +28,7 @@ MAX_CI_ATTEMPTS = 5
 # Shared agent instances (created once, reused across all graph invocations)
 # ---------------------------------------------------------------------------
 
-planner_agent = PlannerAgent()
+issue_decomposer_agent = IssueDecomposerAgent()
 test_agent = TestAgent()
 coder_agent = CoderAgent()
 reviewer_agent = ReviewerAgent()
@@ -138,18 +138,18 @@ async def node_close_already_done(state: IssueState) -> dict:
 
 async def node_assess_complexity(state: IssueState) -> dict:
     """
-    Run the planner and save the assessment to state.
+    Run the issue decomposer and save the assessment to state.
     Kept separate from node_await_approval so the assessment is checkpointed
-    before the interrupt fires — meaning on resume the planner is never re-run.
+    before the interrupt fires — meaning on resume the decomposer is never re-run.
     """
     issue_number = state["issue_number"]
     print(f"[Graph] Checking complexity of issue #{issue_number}...")
 
-    assessment = planner_agent.assess(
-        issue_number=issue_number,
-        issue_title=state.get("issue_title", ""),
-        issue_body=state.get("issue_body", ""),
-    )
+    assessment = await issue_decomposer_agent.run({
+        "issue_number": issue_number,
+        "issue_title": state.get("issue_title", ""),
+        "issue_body": state.get("issue_body", ""),
+    })
     return {"complexity_assessment": assessment}
 
 
@@ -158,7 +158,7 @@ async def node_await_approval(state: IssueState) -> dict:
     If the assessment found a large issue, interrupt and wait for human approval.
     Because this is a separate node from node_assess_complexity, the assessment
     is already in the checkpoint when this node runs — so on resume LangGraph
-    starts here (not at node_assess_complexity) and the planner is never re-run.
+    starts here (not at node_assess_complexity) and the decomposer is never re-run.
     """
     issue_number = state["issue_number"]
     assessment = state.get("complexity_assessment", {})
