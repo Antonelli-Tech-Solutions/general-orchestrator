@@ -6,7 +6,7 @@ from github import Github
 
 from orchestrator.graph import build_graph, CHECKPOINT_DB, AsyncSqliteSaver
 from orchestrator.issue_selector import get_highest_priority_unassigned_issue
-from agents.base_agent import RateLimitError, TransientError, PromptTooLongError
+from agents.base_agent import RateLimitError, TransientError, PromptTooLongError, OutputContractError
 from langgraph.types import Command
 from langgraph.errors import GraphInterrupt
 
@@ -127,11 +127,12 @@ class SpadesOrchestrator:
                     )
                     await asyncio.sleep(wait_seconds)
 
-                except TransientError as e:
+                except (TransientError, OutputContractError) as e:
+                    error_type = type(e).__name__
                     transient_retries += 1
                     if transient_retries > TRANSIENT_MAX_RETRIES:
                         print(
-                            f"[Orchestrator] Transient error persisted after "
+                            f"[Orchestrator] {error_type} persisted after "
                             f"{TRANSIENT_MAX_RETRIES} retries — escalating issue "
                             f"#{current_issue.number if current_issue else '?'}."
                         )
@@ -151,7 +152,7 @@ class SpadesOrchestrator:
                         continue
 
                     print(
-                        f"[Orchestrator] Transient error "
+                        f"[Orchestrator] {error_type} "
                         f"(retry {transient_retries}/{TRANSIENT_MAX_RETRIES}). "
                         f"Retrying in {TRANSIENT_RETRY_SECONDS}s: {e}"
                     )
@@ -167,7 +168,7 @@ class SpadesOrchestrator:
                                   f"finished with status: {status}")
                             current_issue = None
                             transient_retries = 0
-                        except TransientError:
+                        except (TransientError, OutputContractError):
                             pass  # Will be caught on next loop iteration
 
                 except PromptTooLongError:
