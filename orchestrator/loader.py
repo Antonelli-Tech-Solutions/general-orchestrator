@@ -176,10 +176,13 @@ def compose_prompt(
         parts.append(OUTPUT_CONTRACT_MARKER)
         parts.append(default_post.strip())
 
-    # 5. Runtime context
+    variables = {**registry.get("conventions", {}), **context}
+    interpolated = interpolate("\n\n".join(parts), variables, prompt_filename=str(default_task_file))
+
+    # 5. Runtime context — appended AFTER interpolation so user-supplied values
+    # are never scanned for {{placeholder}} patterns.
     if context:
         context_lines = "\n".join(f"{k}: {v}" for k, v in context.items())
-        parts.append(f"## Runtime Context\n\n{context_lines}")
+        return f"{interpolated}\n\n## Runtime Context\n\n{context_lines}"
 
-    variables = {**registry.get("conventions", {}), **context}
-    return interpolate("\n\n".join(parts), variables, prompt_filename=str(default_task_file))
+    return interpolated

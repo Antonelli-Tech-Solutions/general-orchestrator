@@ -400,3 +400,22 @@ class TestComposePromptInterpolation:
         )
 
         assert "Run pytest to test." in result
+
+    def test_context_value_with_double_brace_pattern_does_not_crash(self, tmp_path):
+        """Context values containing {{word}} must not be passed through interpolate."""
+        target = tmp_path / "target"
+        target.mkdir()
+        _make_defaults(tmp_path, "[conventions]\n")
+        _make_default_task(tmp_path, "tester", "write-tests", "Body.")
+
+        result = compose_prompt(
+            "tester",
+            "write-tests",
+            {"issue_title": "Implement {{variable}} interpolation"},
+            _registry(),
+            tmp_path,
+            target,
+        )
+
+        assert "{{variable}}" in result
+        assert "Runtime Context" in result
