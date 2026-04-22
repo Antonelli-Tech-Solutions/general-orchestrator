@@ -1,0 +1,3 @@
+[conventions]
+# Orchestrator-shipped defaults. Target repos override this by providing their own
+# root-level agents.toml — see docs/orchestrator-refactor-prd.md §3 for merge rules.
