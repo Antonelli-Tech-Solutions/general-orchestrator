@@ -20,10 +20,12 @@ This directory contains everything needed to run the orchestrator refactor as a 
    .github/workflows/pr-merged-notifier.yml
    ```
 
-2. **Verify repo secrets are set** (the workflows assume these already exist from prior use on Spades):
-   - `APP_ID` — GitHub App ID for `claude-bot-dom`.
-   - `APP_PRIVATE_KEY` — private key for that App.
+2. **Verify secrets are set** (org-level or repo-level):
+   - `CLAUDEBOT_APP_ID` — GitHub App ID for the Claude bot App.
+   - `CLAUDEBOT_PRIVATE_KEY` — private key (`.pem` contents) for that App.
    - `CLAUDE_CODE_OAUTH_TOKEN` — Max-subscription OAuth token for the Claude Code action.
+
+   Org-level secrets are preferable if this bot will run against multiple target repos. Set "Repository access" to "Selected repositories" and include this repo.
 
 3. **Verify `requirements.txt` captures all runtime deps.** I inferred these from current imports in `agents/`, `orchestrator/`, and `main.py`. If the repo actually uses a different set (e.g., pinned versions), update the file before the first `@claude` run. The only new dev dep the refactor adds is `pytest` (for Task 1.7's loader unit tests).
 
