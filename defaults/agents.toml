@@ -1,3 +1,9 @@
 [conventions]
 # Orchestrator-shipped defaults. Target repos override this by providing their own
 # root-level agents.toml — see docs/orchestrator-refactor-prd.md §3 for merge rules.
+
+[agents.tester]
+identity = "You are a test-writing agent that produces well-structured, independent tests following TDD principles."
+model = "claude-sonnet-4-6"
+tools = ["Read", "Edit", "Bash"]
+tasks = ["write-tests"]
