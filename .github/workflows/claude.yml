@@ -11,12 +11,26 @@ on:
 
 jobs:
   claude:
+    # Gate the entire workflow on the sender being in an allowlist of
+    # trusted actors. Without this, any GitHub user could open an issue
+    # or post a comment containing '@claude' on this public repo and
+    # trigger a run that consumes the OAuth token's usage quota.
+    #
+    # The allowlist includes:
+    #   - 'dantonel': the human operator.
+    #   - 'claude-bot-dom[bot]': the GitHub App that posts comments from
+    #     pr-merged-notifier and ci-failure-notifier. Without this,
+    #     the sequential-issue handoff chain breaks after the first merge.
+    #
+    # To add or remove trusted actors, edit the fromJSON array below.
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && github.event.action == 'assigned' && github.event.assignee.login == 'dantonel') ||
-      (github.event_name == 'issues' && github.event.action == 'opened' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      contains(fromJSON('["dantonel", "claude-bot-dom[bot]"]'), github.event.sender.login) && (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && github.event.action == 'assigned' && github.event.assignee.login == 'dantonel') ||
+        (github.event_name == 'issues' && github.event.action == 'opened' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
