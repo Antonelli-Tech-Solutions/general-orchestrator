@@ -16,4 +16,4 @@ Instructions:
 <!-- ORCHESTRATOR OUTPUT CONTRACT — DO NOT MODIFY -->
 
 After writing, output exactly one line in this format:
-  TEST_FILE: <relative/path/to/test/file.{{test_file_extension}}>
+  TEST_FILE: <relative/path/to/test/file.ext>
