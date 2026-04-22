@@ -1,4 +1,6 @@
 """Unit tests for ReviewerAgent._extract_json."""
+import json
+
 from agents.reviewer_agent import ReviewerAgent
 
 
@@ -17,7 +19,7 @@ VALID_REVIEW = {
     "summary": "One high finding.",
 }
 
-VALID_JSON = '{"findings": [{"severity": "HIGH", "effort": "low", "fix_inline": false, "title": "Missing null check", "body": "foo can be null", "file": "src/foo.js", "line": 10}], "summary": "One high finding."}'
+VALID_JSON = json.dumps(VALID_REVIEW)
 
 
 class TestExtractJson:
