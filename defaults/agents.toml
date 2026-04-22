@@ -1,6 +1,8 @@
 [conventions]
 # Orchestrator-shipped defaults. Target repos override this by providing their own
 # root-level agents.toml — see docs/orchestrator-refactor-prd.md §3 for merge rules.
+primary_language = "the project's primary programming language"
+codebase_layout_hint = "the project's main source directories and test directory"
 
 [agents.tester]
 identity = "You are a test-writing agent that produces well-structured, independent tests following TDD principles."
@@ -13,3 +15,9 @@ identity = "You are a documentation agent that reviews code changes and keeps pr
 model = "claude-sonnet-4-6"
 tools = ["Read", "Edit", "Bash"]
 tasks = ["document"]
+
+[agents."issue-decomposer"]
+identity = "You are an issue decomposition agent that assesses GitHub issue complexity and breaks large issues into independently-implementable sub-issues."
+model = "claude-sonnet-4-6"
+tools = ["Read", "Bash"]
+tasks = ["decompose"]
