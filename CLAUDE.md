@@ -37,6 +37,29 @@ Each GitHub Issue in this refactor corresponds to one task from `docs/orchestrat
 7. **Wait for CI.** The `ci-failure-notifier` and `claude-code-review` workflows will ping you if anything comes back. Fix on the same branch, push, and repeat until checks pass.
 8. **Do not merge yourself.** Merging is gated on the `pr-merged-notifier` flow being triggered by a human merge, which keeps the sequential-issue handoff working cleanly.
 
+## Test-writing policy
+
+Write tests *only* when the change genuinely has something to verify in isolation. Most tasks in this refactor don't.
+
+**Write unit tests when a task:**
+- Adds or modifies a `parse_response` method on an agent. Cover at least one success case and one `OutputContractError` path (malformed / missing expected markers). Put these in `tests/test_<agent>.py` — e.g., `tests/test_test_agent.py` for `TestAgent`.
+- Adds logic to `orchestrator/loader.py` (registry loading, prompt composition, variable interpolation). These are covered by Task 1.7's `tests/test_loader.py`; extend that file rather than creating new ones.
+- Adds a new utility function with conditional branches worth pinning.
+
+**Do NOT write tests when a task:**
+- Extracts a prompt string from Python into a markdown file. The grep-based acceptance criterion is the verification; an additional unit test adds no signal.
+- Creates a `defaults/agents.toml` entry, a `.agents.md` file, or target-repo config. Config files are validated by the loader tests from Task 1.7, not by per-task tests.
+- Adds documentation or scaffolding (empty directories, `.gitkeep` files, etc.).
+- Is an end-to-end validation task (2.3, 5.6, 6.5, 7.2). These are run by a human against a live repo; no test file is the right artifact.
+
+When in doubt, ask: *"If I change the prompt text tomorrow, should this test still pass?"* If yes, write it. If no — the test is pinning the prompt text, which isn't useful — skip it.
+
+**Test style:**
+- Use `pytest` (listed in `requirements-dev.txt`).
+- One test class per method under test, one test per scenario. Descriptive names over clever ones: `test_parse_response_raises_on_missing_test_file_marker` beats `test_parse_err`.
+- For `parse_response` tests, pass literal strings — don't mock Claude Code or `run_claude`. The unit of behavior is string-in/dict-out.
+- For loader tests, use `tmp_path` fixtures. Don't read real files from `defaults/`.
+
 ## Bootstrap task: creating issues from the task list
 
 If assigned an issue whose body says something like "Create GitHub issues for every task in `docs/orchestrator-refactor-tasks.md`":
