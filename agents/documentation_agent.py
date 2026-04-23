@@ -62,10 +62,28 @@ class DocumentationAgent(BaseAgent):
             "docs-writer", "document", context, registry, _ORCHESTRATOR_ROOT, _TARGET_ROOT
         )
 
-        # Claude Code runs in REPO_DIR so it can read and write doc files directly
-        response = run_claude(prompt, allowed_tools="Read,Edit,Bash", model="claude-sonnet-4-6")
-
-        parsed = self.parse_response(response)
+        # Claude Code runs in REPO_DIR so it can read and write doc files directly.
+        # Retry up to 3 times on OutputContractError, feeding the error back so
+        # Claude understands what format is required.
+        MAX_FORMAT_RETRIES = 3
+        current_prompt = prompt
+        for attempt in range(1, MAX_FORMAT_RETRIES + 1):
+            response = run_claude(current_prompt, allowed_tools="Read,Edit,Bash", model="claude-sonnet-4-6")
+            try:
+                parsed = self.parse_response(response)
+                break
+            except OutputContractError as e:
+                if attempt == MAX_FORMAT_RETRIES:
+                    raise
+                print(f"[Docs] OutputContractError on attempt {attempt}/{MAX_FORMAT_RETRIES}: {e}")
+                current_prompt = (
+                    prompt
+                    + f"\n\n---\n**Previous attempt failed the output contract.**\n"
+                    f"Error: {e}\n"
+                    f"Your last response was:\n```\n{response[:500]}\n```\n"
+                    f"Please re-read the output contract at the bottom of this prompt "
+                    f"and respond with ONLY `NO_CHANGES` or one or more `UPDATED: <path>` lines."
+                )
         files_updated = parsed["files_updated"]
 
         if not files_updated:
