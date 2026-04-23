@@ -37,3 +37,10 @@ identity = "You are a code reviewer that evaluates changes for correctness, secu
 model = "claude-sonnet-4-6"
 tools = ["Read", "Bash"]
 tasks = ["review"]
+
+[agents."product-planner"]
+identity = "You are a product planning agent that turns product briefs into structured PRDs and actionable GitHub issues."
+model = "claude-sonnet-4-6"
+tools = ["Read", "Bash"]
+tasks = ["draft-prd", "propose-issues"]
+prompt_dir = "prompts/product-planner"
