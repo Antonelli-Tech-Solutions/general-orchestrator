@@ -98,6 +98,10 @@ Populated by the orchestrator or individual agents at runtime. They come from th
 | `{{brief}}` | `scripts/run_agent.py` | Product brief text passed as `--input` to `product-planner draft-prd`. Used by `product-planner/draft-prd.md`. |
 | `{{prd}}` | `scripts/run_agent.py` | Full PRD text passed as `--input` to `product-planner propose-issues`. Used by `product-planner/propose-issues.md`. |
 | `{{input}}` | `scripts/run_agent.py` | Generic input text passed as `--input` for tasks not listed in `_TASK_INPUT_VARS` (e.g. `triager triage`). Used by `triager/triage.md`, `security-auditor/audit.md`. |
+| `{{last_tag}}` | `scripts/run_agent.py` | The most recent git tag marking the previous release (e.g. `"v1.2.3"`). Used by `release/draft-changelog.md`. |
+| `{{merged_prs}}` | `scripts/run_agent.py` | Formatted list of pull requests merged since `{{last_tag}}`. Used by `release/draft-changelog.md`. |
+| `{{current_version}}` | `scripts/run_agent.py` | Current version string (e.g. `"1.2.3"`). Used by `release/bump-version.md`. |
+| `{{changelog_entry}}` | `release_agent.py` | Changelog text produced by the `draft-changelog` task, passed into `bump-version`. Used by `release/bump-version.md`. |
 
 ### Adding a new variable
 
