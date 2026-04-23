@@ -56,6 +56,14 @@ Variable interpolation happens over steps 1–5 using `{{variable_name}}` syntax
 
 ---
 
+## Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `TARGET_REPO_PATH` | `working-repo/` (relative to orchestrator root) | Absolute path to the target repository. Set to point the orchestrator at a different repo. Full setup docs in `docs/target-repo-setup.md` (Task 6.4). |
+
+---
+
 ## Template variables
 
 Template variables appear in prompt files as `{{variable_name}}`. They are resolved by `orchestrator/loader.py::interpolate()` at prompt-composition time. Every variable used in a prompt **must** be resolvable; an undefined variable raises a `ValueError` naming the prompt file.

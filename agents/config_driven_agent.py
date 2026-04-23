@@ -1,10 +1,11 @@
+import os
 from pathlib import Path
 
 from agents.base_agent import BaseAgent, run_claude, REPO_DIR
 from orchestrator.loader import compose_prompt, load_registry
 
 _ORCHESTRATOR_ROOT = Path(__file__).parent.parent
-_TARGET_ROOT = Path(REPO_DIR)
+_TARGET_ROOT = Path(os.environ.get("TARGET_REPO_PATH", REPO_DIR))
 
 
 class ConfigDrivenAgent(BaseAgent):
@@ -26,6 +27,6 @@ class ConfigDrivenAgent(BaseAgent):
         prompt = compose_prompt(
             self.agent_name, task, context, registry, _ORCHESTRATOR_ROOT, _TARGET_ROOT
         )
-        response = run_claude(prompt, allowed_tools=tools, model=model)
+        response = run_claude(prompt, allowed_tools=tools, model=model, cwd=str(_TARGET_ROOT))
         parsed = self.parse_response(response)
         return {"agent": self.agent_name, "task": task, **parsed}
