@@ -1,10 +1,11 @@
+import os
 from pathlib import Path
 
 from agents.base_agent import BaseAgent, run_claude, REPO_DIR
 from orchestrator.loader import compose_prompt, load_registry
 
 _ORCHESTRATOR_ROOT = Path(__file__).parent.parent
-_TARGET_ROOT = Path(REPO_DIR)
+_TARGET_ROOT = Path(os.environ.get("TARGET_REPO_PATH", REPO_DIR))
 
 
 class ConfigDrivenAgent(BaseAgent):
