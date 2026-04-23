@@ -5,14 +5,14 @@ import os
 from dotenv import load_dotenv
 load_dotenv()   # ← must run before orchestrator imports
 
-from github import Github
+from github import Github  # noqa: E402
 
-from orchestrator.graph import build_graph, CHECKPOINT_DB
-from orchestrator.issue_selector import get_highest_priority_unassigned_issue
-from agents.base_agent import RateLimitError, TransientError, PromptTooLongError, OutputContractError
-from langgraph.types import Command
-from langgraph.errors import GraphInterrupt
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from orchestrator.graph import build_graph, CHECKPOINT_DB  # noqa: E402
+from orchestrator.issue_selector import get_highest_priority_unassigned_issue  # noqa: E402
+from agents.base_agent import RateLimitError, TransientError, PromptTooLongError, OutputContractError  # noqa: E402
+from langgraph.types import Command  # noqa: E402
+from langgraph.errors import GraphInterrupt  # noqa: E402
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver  # noqa: E402
 
 STOP_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "STOP")
 
