@@ -1,8 +1,17 @@
 import os
 import subprocess
+from pathlib import Path
 
-from agents.base_agent import run_claude, REPO_DIR, TransientError
 from github import Github
+from agents.base_agent import (
+    BaseAgent, OutputContractError, run_claude,
+    RateLimitError, PromptTooLongError, TransientError, REPO_DIR  # noqa: F401
+)
+from orchestrator.loader import compose_prompt, load_registry
+
+
+_ORCHESTRATOR_ROOT = Path(__file__).parent.parent
+_TARGET_ROOT = Path(REPO_DIR)
 
 
 def get_repo():
@@ -51,126 +60,22 @@ def run_git(args: list[str]):
     return result.stdout.strip()
 
 
-PROMPT_TEMPLATE = """\
-You are a coding agent for the Spades Online card game backend.
-
-Implement the code required to resolve this GitHub issue and make the tests pass.
-
-Issue #{issue_number}:
-{issue_description}
-
-Tests to pass ({test_file_path}):
-{test_code}
-{feedback_section}
-Instructions:
-- Read the existing codebase to understand patterns and conventions before writing anything.
-- Implement only what is needed to make the tests pass.
-- Follow ES Modules (import/export, not require).
-- Use async/await for async operations.
-- Keep game logic in server/game/.
-- Add appropriate error handling and logging.
-- Write all files to disk using the Edit tool.
-- NEVER modify or delete .gitignore.
-- NEVER run npm install — node_modules is not committed to this repo.
-- Once all files are written, stage and commit with:
-    git add -A
-    git commit -m "fix: <short description of what you implemented>"
-- After committing, output exactly two lines in this format:
-  COMMIT: <the commit message you used>
-  SUMMARY: <2-3 sentences describing what files were changed and why>
-"""
-
-FEEDBACK_SECTION = """\
-
-Previous attempt was rejected by the reviewer. You MUST address every point below:
-{reviewer_feedback}
-"""
-
-RETRY_PROMPT_TEMPLATE = """\
-You are a coding agent for the Spades Online card game backend.
-
-A previous implementation for issue #{issue_number} was rejected by the reviewer.
-Your job is to fix ONLY the specific issues listed below — do not rewrite or
-restructure code that was not flagged. The existing implementation is already on
-the branch; read it first, then make the minimum changes needed.
-
-Issue #{issue_number}:
-{issue_description}
-
-Issues to fix:
-{reviewer_feedback}
-
-Instructions:
-- Read the existing files on this branch before making any changes.
-- Make targeted fixes only — do not refactor beyond what is listed.
-- Follow ES Modules (import/export, not require).
-- NEVER modify or delete .gitignore.
-- NEVER run npm install.
-- Write all changes to disk using the Edit tool.
-- Once all fixes are applied, stage and commit with:
-    git add -A
-    git commit -m "fix: address review feedback for issue #{issue_number}"
-- After committing, output exactly two lines in this format:
-  COMMIT: <the commit message you used>
-  SUMMARY: <2-3 sentences describing what you changed and why>
-"""
-
-CI_FIX_PROMPT_TEMPLATE = """\
-You are a coding agent for the Spades Online card game backend.
-
-CI checks failed on the PR for issue #{issue_number}. Your job is to fix the
-failing tests — do not rewrite working code. Read the existing implementation
-on this branch first, then make the minimum changes needed to make CI pass.
-
-Issue #{issue_number}:
-{issue_description}
-
-CI failure details and diagnosis:
-{ci_feedback}
-
-Instructions:
-- Read the existing files on this branch before making any changes.
-- Make targeted fixes only — do not refactor beyond what is needed to fix CI.
-- If the diagnosis says the TEST is wrong, fix the test assertions.
-- If the diagnosis says the IMPLEMENTATION is wrong, fix the implementation.
-- NEVER modify or delete .gitignore.
-- NEVER run npm install.
-- Write all changes to disk using the Edit tool.
-- Once all fixes are applied, stage and commit with:
-    git add -A
-    git commit -m "fix: resolve CI failure for issue #{issue_number}"
-- After committing, output exactly two lines in this format:
-  COMMIT: <the commit message you used>
-  SUMMARY: <2-3 sentences describing what you changed and why>
-"""
-
-
-INLINE_FIX_PROMPT_TEMPLATE = """\
-You are a coding agent for the Spades Online card game backend.
-
-The code for issue #{issue_number} has been implemented and reviewed. The reviewer
-found the following low-effort improvements that should be fixed immediately in this
-PR rather than deferred to the backlog. Each fix should be a small, targeted change.
-
-Inline fixes to apply:
-{inline_findings}
-
-Instructions:
-- Read the relevant files before making any changes.
-- Apply each fix as a minimal, targeted change — do not refactor beyond what is listed.
-- Write all changes to disk using the Edit tool.
-- Once all fixes are applied, stage and commit with:
-    git add -A
-    git commit -m "fix: apply inline review fixes for issue #{issue_number}"
-- After committing, output exactly two lines in this format:
-  COMMIT: <the commit message you used>
-  SUMMARY: <2-3 sentences describing what files were changed and why>
-"""
-
-
-class CoderAgent:
+class CoderAgent(BaseAgent):
     def __init__(self):
         self._ensure_local_repo()
+
+    def parse_response(self, text: str) -> dict:
+        for line in text.splitlines():
+            if line.startswith("COMMIT:"):
+                commit_message = line[len("COMMIT:"):].strip()
+                if commit_message:
+                    return {"commit_message": commit_message}
+        raise OutputContractError(
+            agent="coder",
+            task="implement",
+            expected="COMMIT: <message>",
+            got_preview=text[:200],
+        )
 
     def implement(
         self,
@@ -180,6 +85,7 @@ class CoderAgent:
         test_code: str,
         reviewer_feedback: str | None = None,
         review_history: list | None = None,
+        task: str = "implement",
     ) -> dict:
         repo = get_repo()
         branch = branch_name(issue_number)
@@ -201,47 +107,30 @@ class CoderAgent:
             run_git(["checkout", "-b", branch])
             print(f"[Coder] Created new branch {branch} from {default}.")
 
-        # Build prompt — three cases:
-        # 1. CI failure feedback → targeted CI fix prompt
-        # 2. Reviewer feedback  → targeted review fix prompt
-        # 3. No feedback        → fresh implementation prompt
-        is_ci_feedback = (
-            reviewer_feedback is not None
-            and reviewer_feedback.startswith("The CI failure")
-        )
+        # Build prompt using compose_prompt
+        registry = load_registry(_ORCHESTRATOR_ROOT, _TARGET_ROOT)
 
-        if is_ci_feedback:
-            prompt = CI_FIX_PROMPT_TEMPLATE.format(
-                issue_number=issue_number,
-                issue_description=issue_description,
-                ci_feedback=reviewer_feedback,
-            )
-        elif reviewer_feedback:
-            history_section = ""
-            if review_history:
-                history_section = "\nPrevious attempts summary (for context only):\n"
-                for i, h in enumerate(review_history, 1):
-                    history_section += f"  Attempt {i}: {h}\n"
-            prompt = RETRY_PROMPT_TEMPLATE.format(
-                issue_number=issue_number,
-                issue_description=issue_description,
-                reviewer_feedback=reviewer_feedback,
-                history_section=history_section,
-            )
-        else:
-            prompt = PROMPT_TEMPLATE.format(
-                issue_number=issue_number,
-                issue_description=issue_description,
-                test_file_path=test_file_path,
-                test_code=test_code,
-                feedback_section="",
-            )
+        prompt_context: dict = {
+            "issue_number": issue_number,
+            "issue_description": issue_description,
+        }
 
-        print(f"[Coder] Implementing issue #{issue_number}...")
+        if task == "fix-ci":
+            prompt_context["ci_errors"] = reviewer_feedback or ""
+        elif task == "fix-review":
+            prompt_context["reviewer_feedback"] = reviewer_feedback or ""
+        else:  # implement
+            prompt_context["test_file_path"] = test_file_path
+            prompt_context["test_code"] = test_code
+            prompt_context["feedback_section"] = ""
+
+        prompt = compose_prompt("coder", task, prompt_context, registry, _ORCHESTRATOR_ROOT, _TARGET_ROOT)
+
+        print(f"[Coder] Implementing issue #{issue_number} (task: {task})...")
 
         # Claude Code runs in REPO_DIR with full Read/Edit/Bash access.
         # It reads the codebase, writes files, and commits — all autonomously.
-        response = run_claude(prompt, allowed_tools="Read,Edit,Bash", model="claude-opus-4-6")
+        response = run_claude(prompt, allowed_tools="Read,Edit,Bash", model="claude-opus-4-7")
 
         # Parse the COMMIT and SUMMARY lines
         commit_message = None
@@ -451,9 +340,13 @@ class CoderAgent:
                 location += ")"
             findings_text += f"{i}. [{f['severity']}] {f['title']}{location}\n   {f['body']}\n\n"
 
-        prompt = INLINE_FIX_PROMPT_TEMPLATE.format(
-            issue_number=issue_number,
-            inline_findings=findings_text,
+        registry = load_registry(_ORCHESTRATOR_ROOT, _TARGET_ROOT)
+        prompt_context = {
+            "issue_number": issue_number,
+            "inline_findings": findings_text,
+        }
+        prompt = compose_prompt(
+            "coder", "fix-inline", prompt_context, registry, _ORCHESTRATOR_ROOT, _TARGET_ROOT
         )
 
         print(f"[Coder] Applying {len(inline_findings)} inline fix(es) for issue #{issue_number}...")
@@ -477,13 +370,34 @@ class CoderAgent:
         return {"code_changes": run_git(["diff", f"origin/{self._get_default_branch()}..HEAD"])}
 
     async def run(self, context: dict) -> dict:
+        reviewer_feedback = context.get("reviewer_feedback")
+        mode = context.get("mode")
+
+        # Inline fix path — explicit mode or inline_findings present
+        if mode == "fix-inline" or context.get("inline_findings"):
+            return self.implement_inline_fixes(
+                issue_number=context["issue_number"],
+                inline_findings=context.get("inline_findings", []),
+            )
+
+        # Determine task from explicit mode or existing context signals
+        if mode:
+            task = mode
+        elif reviewer_feedback and reviewer_feedback.startswith("The CI failure"):
+            task = "fix-ci"
+        elif reviewer_feedback:
+            task = "fix-review"
+        else:
+            task = "implement"
+
         return self.implement(
             issue_number=context["issue_number"],
             issue_description=context.get("issue_body", ""),
             test_file_path=context.get("test_file_path", ""),
             test_code=context.get("test_code", ""),
-            reviewer_feedback=context.get("reviewer_feedback"),
+            reviewer_feedback=reviewer_feedback,
             review_history=context.get("review_history") or [],
+            task=task,
         )
 
     def _ensure_local_repo(self):
