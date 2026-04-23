@@ -1,0 +1,18 @@
+# Spades Online — target-repo config for the general orchestrator.
+#
+# Copy this file to the root of the Spades repo (i.e. spades/agents.toml).
+# The orchestrator loads agents.toml from the target-repo root; this [conventions]
+# block replaces the orchestrator's defaults entirely.
+#
+# Per-agent [agents.*] overrides are not required for v1 — defaults are sufficient.
+# Add an [agents.coder] etc. block here only if Spades needs a model or tool change.
+
+[conventions]
+primary_language = "javascript"
+codebase_layout_hint = "server/game/ for game logic, server/ for API and socket handlers, test/ for tests"
+test_file_pattern = "test/**/*.test.js"
+test_file_extension = "js"
+test_runner = "node:test (built-in — use: import { test, describe } from 'node:test'; import assert from 'node:assert/strict';)"
+test_command = "node --test"
+install_command = "npm install"
+module_system_hint = "ES Modules — use import/export syntax. Never use require(). All local import paths must include the .js extension (e.g. './game.js' not './game')."
