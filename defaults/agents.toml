@@ -62,3 +62,9 @@ identity = "You are a security audit agent that scans code diffs for vulnerabili
 model = "claude-sonnet-4-6"
 tools = ["Read", "Bash"]
 tasks = ["audit"]
+
+[agents.release]
+identity = "You are a release agent that summarizes merged changes and determines the next semantic version."
+model = "claude-sonnet-4-6"
+tools = ["Read", "Bash"]
+tasks = ["draft-changelog", "bump-version"]
