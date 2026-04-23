@@ -1,76 +1,17 @@
 import json
 import os
+from pathlib import Path
+
 from github import Github
-from agents.base_agent import run_claude, RateLimitError, PromptTooLongError, TransientError  # noqa: F401
+from agents.base_agent import (
+    BaseAgent, OutputContractError, run_claude,
+    RateLimitError, PromptTooLongError, TransientError, REPO_DIR  # noqa: F401
+)
+from orchestrator.loader import compose_prompt, load_registry
 
-REVIEWER_PROMPT = """You are a code reviewer for Spades Online, a digital card game implementation.
 
-Review the provided code changes and categorize all findings by severity.
-
-IMPORTANT: If this is a retry attempt (previous review history is provided below),
-focus only on the SINGLE most important remaining blocking issue. Do not re-report
-issues that have already been addressed. Reporting one clear issue at a time helps
-the coder converge rather than getting overwhelmed.
-
-Review the provided code changes and categorize all findings by severity:
-
-CRITICAL: Must fix before merge
-- Security issues (e.g. card data exposed to wrong client, auth bypass)
-- Game rule violations (e.g. illegal moves not rejected, bid logic wrong)
-- Data loss or corruption risks
-
-HIGH: Must fix before merge
-- Bugs that would cause incorrect behavior or crashes
-- Memory leaks or resource mismanagement
-- Missing error handling on critical paths
-
-MEDIUM: Should fix, but won't block merge
-- Performance issues or inefficient patterns
-- Unhandled edge cases that are unlikely but possible
-- Missing input validation on non-critical paths
-
-LOW: Nice to fix eventually
-- Style and naming convention issues
-- Minor code clarity improvements
-- Redundant code
-
-For each finding also assess implementation effort:
-- "low": a one or two line change, trivial to implement, no design decisions needed
-  (e.g. add a missing null check, rename a variable, add a missing await, add a comment)
-- "high": requires design thought, touches multiple files, or has unclear best approach
-  (e.g. refactor a module, add a new abstraction, change a data model)
-
-Set fix_inline to true when BOTH of these are true:
-- severity is "MEDIUM" or "LOW"
-- effort is "low"
-
-These will be fixed immediately in the same PR rather than creating backlog issues.
-
-IMPORTANT: Do not generate MEDIUM or LOW findings for test files (any file under
-test/ or ending in .test.js, .spec.js). Test style, structure, and minor quality
-issues in test files are not worth tracking as backlog items. Only flag CRITICAL
-or HIGH findings in test files (e.g. a test that asserts the wrong expected value,
-or a test that could never fail).
-
-Respond ONLY with a valid JSON object in this exact format — no preamble, no markdown:
-
-{
-  "findings": [
-    {
-      "severity": "CRITICAL" | "HIGH" | "MEDIUM" | "LOW",
-      "effort": "low" | "high",
-      "fix_inline": true | false,
-      "title": "Short title for a GitHub issue",
-      "body": "Detailed description of the problem and suggested fix",
-      "file": "path/to/file.js or null",
-      "line": 42 or null
-    }
-  ],
-  "summary": "One or two sentence overall assessment"
-}
-
-If there are no findings, return an empty findings array.
-"""
+_ORCHESTRATOR_ROOT = Path(__file__).parent.parent
+_TARGET_ROOT = Path(REPO_DIR)
 
 
 def get_repo():
@@ -78,10 +19,39 @@ def get_repo():
     return g.get_repo(os.getenv("GITHUB_REPO"))
 
 
-class ReviewerAgent:
+class ReviewerAgent(BaseAgent):
     # Max diff chars to send to the reviewer — roughly 100k tokens worth.
     # If the diff exceeds this, we truncate and note it so Claude knows.
     MAX_DIFF_CHARS = 80_000
+
+    def parse_response(self, text: str) -> dict:
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+        clean = text.replace("```json", "").replace("```", "").strip()
+        try:
+            return json.loads(clean)
+        except json.JSONDecodeError:
+            pass
+
+        decoder = json.JSONDecoder()
+        for t in (text, clean):
+            for i, ch in enumerate(t):
+                if ch == '{':
+                    try:
+                        obj, _ = decoder.raw_decode(t, i)
+                        return obj
+                    except json.JSONDecodeError:
+                        continue
+
+        raise OutputContractError(
+            agent="reviewer",
+            task="review",
+            expected="valid JSON with keys: findings, summary",
+            got_preview=text[:200],
+        )
 
     def review(self, code_changes: str, review_history: list | None = None) -> dict:
         print("[Reviewer] Analyzing code changes...")
@@ -96,32 +66,34 @@ class ReviewerAgent:
             code_changes = truncated + note
             print(f"[Reviewer] Warning: diff truncated to {self.MAX_DIFF_CHARS} chars.")
 
-        history_section = ""
+        history_str = ""
         if review_history:
-            history_section = "\n\nPrevious review attempts (do not re-report already-fixed issues):\n"
+            history_str = "\n\nPrevious review attempts (do not re-report already-fixed issues):\n"
             for i, h in enumerate(review_history, 1):
-                history_section += f"\nAttempt {i}: {h}\n"
+                history_str += f"\nAttempt {i}: {h}\n"
 
-        prompt = (
-            f"{REVIEWER_PROMPT}\n\n"
-            f"Code changes to review:\n\n{code_changes}"
-            f"{history_section}"
-        )
+        registry = load_registry(_ORCHESTRATOR_ROOT, _TARGET_ROOT)
+        context = {"code_changes": code_changes, "review_history": history_str}
 
         try:
+            prompt = compose_prompt(
+                "reviewer", "review", context, registry, _ORCHESTRATOR_ROOT, _TARGET_ROOT
+            )
             raw = run_claude(prompt, allowed_tools="Read,Bash", model="claude-sonnet-4-6")
         except PromptTooLongError:
-            # Even after truncation the prompt is too long — truncate more aggressively
             hard_limit = self.MAX_DIFF_CHARS // 4
             truncated = code_changes[:hard_limit]
             note = (
                 f"\n\n[DIFF HEAVILY TRUNCATED: showing first {hard_limit} chars only]"
             )
-            prompt = f"{REVIEWER_PROMPT}\n\nCode changes to review:\n\n{truncated}{note}"
+            context = {"code_changes": truncated + note, "review_history": history_str}
+            prompt = compose_prompt(
+                "reviewer", "review", context, registry, _ORCHESTRATOR_ROOT, _TARGET_ROOT
+            )
             print(f"[Reviewer] Warning: hard truncating diff to {hard_limit} chars.")
             raw = run_claude(prompt, allowed_tools="Read,Bash", model="claude-sonnet-4-6")
 
-        result = self._extract_json(raw)
+        result = self.parse_response(raw)
 
         findings = result.get("findings", [])
         summary = result.get("summary", "")
@@ -229,7 +201,7 @@ class ReviewerAgent:
         Determine whether a CI failure is caused by a bug in the implementation
         or an incorrect test. Returns {"is_test_bug": bool, "confidence": str, "reasoning": str}.
         """
-        triage_prompt = """You are triaging a CI failure for the Spades Online card game.
+        triage_prompt = """You are triaging a CI failure for a software project.
 
 Given the CI failure output and the code changes in this PR, determine whether
 the failure is caused by:

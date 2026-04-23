@@ -3,6 +3,7 @@
 # root-level agents.toml — see docs/orchestrator-refactor-prd.md §3 for merge rules.
 primary_language = "the project's primary programming language"
 codebase_layout_hint = "the project's main source directories and test directory"
+test_file_pattern = "test_*.py"
 
 [agents.tester]
 identity = "You are a test-writing agent that produces well-structured, independent tests following TDD principles."
@@ -21,3 +22,9 @@ identity = "You are an issue decomposition agent that assesses GitHub issue comp
 model = "claude-sonnet-4-6"
 tools = ["Read", "Bash"]
 tasks = ["decompose"]
+
+[agents.reviewer]
+identity = "You are a code reviewer that evaluates changes for correctness, security, and quality."
+model = "claude-sonnet-4-6"
+tools = ["Read", "Bash"]
+tasks = ["review"]

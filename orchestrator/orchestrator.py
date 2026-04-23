@@ -3,7 +3,7 @@ import asyncio
 import os
 
 from dotenv import load_dotenv
-load_dotenv()   # ← must run before orchestrator imports
+load_dotenv()  # must run before orchestrator imports
 
 from github import Github  # noqa: E402
 
