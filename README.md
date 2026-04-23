@@ -73,8 +73,8 @@ Set in `[conventions]` of `agents.toml`. The target repo's `[conventions]` block
 | `{{test_file_pattern}}` | `"test_*.py"` | Glob pattern for locating test files (e.g. `"test_*.py"`, `"*.test.ts"`). Used by `reviewer/review.md` and `tester/write-tests.md`. |
 | `{{test_file_extension}}` | _(must be set by target repo)_ | File extension for new test files (e.g. `"py"`, `"test.ts"`). Used by `tester/write-tests.md`. |
 | `{{test_runner}}` | _(must be set by target repo)_ | Testing framework name (e.g. `"pytest"`, `"jest"`). Used by `tester/write-tests.md`. |
-| `{{test_command}}` | _(must be set by target repo)_ | Shell command to run the test suite (e.g. `"pytest"`, `"npm test"`). Used by `coder/implement.md`. |
-| `{{install_command}}` | _(must be set by target repo)_ | Dependency install command (e.g. `"pip install -r requirements.txt"`). Used in `coder/implement.md` to tell the coder **not** to run it. |
+| `{{test_command}}` | _(must be set by target repo)_ | Shell command to run the test suite (e.g. `"pytest"`, `"npm test"`). Used by `coder/implement.md` and `coder/fix-ci.md`. |
+| `{{install_command}}` | _(must be set by target repo)_ | Dependency install command (e.g. `"pip install -r requirements.txt"`). Used in `coder/implement.md`, `coder/fix-review.md`, and `coder/fix-ci.md` to tell the coder **not** to run it. |
 | `{{module_system_hint}}` | _(must be set by target repo)_ | Short description of the import/module system (e.g. `"Python imports"`, `"ES Modules with named exports"`). Used by `coder/implement.md`. |
 
 ### Runtime context variables
@@ -93,6 +93,7 @@ Populated by the orchestrator or individual agents at runtime. They come from th
 | `{{review_history}}` | `reviewer_agent.py` | Accumulated text from all prior review rounds. Used by `reviewer/review.md` so the reviewer can avoid repeating itself. |
 | `{{feedback_section}}` | `coder_agent.py` | Reviewer feedback or retry context injected into the coder's re-attempt prompt. Used by `coder/implement.md`. |
 | `{{reviewer_feedback}}` | `coder_agent.py` | Feedback text from the reviewer agent listing specific issues the coder must fix. Passed from the orchestrator context into the fix-review prompt. Used by `coder/fix-review.md`. |
+| `{{ci_errors}}` | `coder_agent.py` | CI failure output and diagnosis text. Passed when the orchestrator detects a failing CI run on a PR. Used by `coder/fix-ci.md`. |
 
 ### Adding a new variable
 
