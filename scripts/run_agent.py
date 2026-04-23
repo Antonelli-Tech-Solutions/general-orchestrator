@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Maps agent name -> fully-qualified class path
 _AGENT_CLASSES: dict[str, str] = {
     "product-planner": "agents.product_planner_agent.ProductPlannerAgent",
+    "triager": "agents.triager_agent.TriagerAgent",
 }
 
 # Maps task name -> context variable name for --input
