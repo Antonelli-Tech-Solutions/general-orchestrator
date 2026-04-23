@@ -86,7 +86,7 @@ Populated by the orchestrator or individual agents at runtime. They come from th
 | `{{issue_number}}` | `orchestrator.py` | GitHub issue number (integer). Available to all agents. |
 | `{{issue_title}}` | `orchestrator.py` | GitHub issue title string. Used by `issue-decomposer/decompose.md`. |
 | `{{issue_body}}` | `orchestrator.py` | Full GitHub issue body text. Falls back to the title if the body is empty. Used by `issue-decomposer/decompose.md`. |
-| `{{issue_description}}` | `test_agent.py` | Alias for `issue_body` as passed downstream. Used by `coder/implement.md` and `tester/write-tests.md`. |
+| `{{issue_description}}` | `test_agent.py` | Alias for `issue_body` as passed downstream. Used by `coder/implement.md`, `tester/write-tests.md`, and `coder/fix-ci.md`. |
 | `{{test_file_path}}` | `test_agent.py` | Relative path to the test file written by the tester agent (e.g. `"tests/test_foo.py"`). Used by `coder/implement.md`. |
 | `{{test_code}}` | `test_agent.py` | Full contents of the test file at `{{test_file_path}}`. Used by `coder/implement.md`. |
 | `{{code_changes}}` | `coder_agent.py` / `reviewer_agent.py` | Output of `git diff origin/<default_branch>..HEAD` — the diff the coder produced. Used by `reviewer/review.md` and `docs-writer/document.md`. |
