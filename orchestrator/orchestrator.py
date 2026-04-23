@@ -2,13 +2,17 @@
 import asyncio
 import os
 
+from dotenv import load_dotenv
+load_dotenv()   # ← must run before orchestrator imports
+
 from github import Github
 
-from orchestrator.graph import build_graph, CHECKPOINT_DB, AsyncSqliteSaver
+from orchestrator.graph import build_graph, CHECKPOINT_DB
 from orchestrator.issue_selector import get_highest_priority_unassigned_issue
 from agents.base_agent import RateLimitError, TransientError, PromptTooLongError, OutputContractError
 from langgraph.types import Command
 from langgraph.errors import GraphInterrupt
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 STOP_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "STOP")
 
