@@ -5,6 +5,15 @@ primary_language = "the project's primary programming language"
 codebase_layout_hint = "the project's main source directories and test directory"
 test_file_pattern = "test_*.py"
 
+[agents.coder]
+identity = """
+You are a coding agent. Always read the codebase to understand patterns
+before writing. Prefer clarity over cleverness.
+"""
+model = "claude-opus-4-7"
+tools = ["Read", "Edit", "Bash"]
+tasks = ["implement", "fix-review", "fix-ci", "fix-inline"]
+
 [agents.tester]
 identity = "You are a test-writing agent that produces well-structured, independent tests following TDD principles."
 model = "claude-sonnet-4-6"
