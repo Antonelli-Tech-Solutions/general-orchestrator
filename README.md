@@ -92,6 +92,7 @@ Populated by the orchestrator or individual agents at runtime. They come from th
 | `{{code_changes}}` | `coder_agent.py` / `reviewer_agent.py` | Output of `git diff origin/<default_branch>..HEAD` — the diff the coder produced. Used by `reviewer/review.md` and `docs-writer/document.md`. |
 | `{{review_history}}` | `reviewer_agent.py` | Accumulated text from all prior review rounds. Used by `reviewer/review.md` so the reviewer can avoid repeating itself. |
 | `{{feedback_section}}` | `coder_agent.py` | Reviewer feedback or retry context injected into the coder's re-attempt prompt. Used by `coder/implement.md`. |
+| `{{reviewer_feedback}}` | `coder_agent.py` | Feedback text from the reviewer agent listing specific issues the coder must fix. Passed from the orchestrator context into the fix-review prompt. Used by `coder/fix-review.md`. |
 
 ### Adding a new variable
 
