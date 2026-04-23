@@ -94,6 +94,7 @@ Populated by the orchestrator or individual agents at runtime. They come from th
 | `{{feedback_section}}` | `coder_agent.py` | Reviewer feedback or retry context injected into the coder's re-attempt prompt. Used by `coder/implement.md`. |
 | `{{reviewer_feedback}}` | `coder_agent.py` | Feedback text from the reviewer agent listing specific issues the coder must fix. Passed from the orchestrator context into the fix-review prompt. Used by `coder/fix-review.md`. |
 | `{{ci_errors}}` | `coder_agent.py` | CI failure output and diagnosis text. Passed when the orchestrator detects a failing CI run on a PR. Used by `coder/fix-ci.md`. |
+| `{{inline_findings}}` | `coder_agent.py` | Formatted list of low-effort inline review fixes the coder must apply immediately in the current PR. Used by `coder/fix-inline.md`. |
 
 ### Adding a new variable
 
