@@ -41,6 +41,8 @@ prompts/<agent>/<task>.md  # optional — overrides default task prompt body
 .agents.md           # optional — per-agent shared context injected into every prompt
 ```
 
+> For the complete target-repo configuration guide — agents.toml schema, `.agents.md` format, prompt overrides, minimum viable configs, and a worked example — see [`docs/target-repo-setup.md`](docs/target-repo-setup.md).
+
 ### Prompt composition order
 
 For each `(agent, task)` pair the final prompt is assembled as:

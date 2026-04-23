@@ -152,20 +152,22 @@ The following agents are defined in the orchestrator's `defaults/agents.toml`:
 
 Convention variables are set in `[conventions]` in your `agents.toml` and referenced in prompts as `{{variable_name}}`. If your `[conventions]` block is present, you must supply every variable that any prompt you exercise actually uses — an undefined variable raises a `ValueError` at prompt-composition time rather than silently inserting `{{foo}}`.
 
+The canonical variable reference — including defaults and which prompt files each variable appears in — is in the [README under "Template variables"](../README.md#template-variables). The table below focuses on what each variable requires from a target-repo operator's perspective.
+
 ### Required vs. optional
 
 Variables marked **must set** have no useful default and must be provided for the relevant agents to work correctly.
 
-| Variable | Default | Must set? | Used by |
-|---|---|---|---|
-| `primary_language` | `"the project's primary programming language"` | Recommended | `issue-decomposer/decompose.md` |
-| `codebase_layout_hint` | `"the project's main source directories and test directory"` | Recommended | `issue-decomposer/decompose.md` |
-| `test_file_pattern` | `"test_*.py"` | Yes (if using tester/reviewer) | `tester/write-tests.md`, `reviewer/review.md` |
-| `test_file_extension` | _(none)_ | Yes (if using tester) | `tester/write-tests.md` |
-| `test_runner` | _(none)_ | Yes (if using tester) | `tester/write-tests.md` |
-| `test_command` | _(none)_ | Yes (if using coder) | `coder/implement.md`, `coder/fix-ci.md` |
-| `install_command` | _(none)_ | Yes (if using coder) | `coder/implement.md`, `coder/fix-review.md`, `coder/fix-ci.md` |
-| `module_system_hint` | _(none)_ | Yes (if using coder) | `coder/implement.md` |
+| Variable | Must set? |
+|---|---|
+| `primary_language` | Recommended |
+| `codebase_layout_hint` | Recommended |
+| `test_file_pattern` | Yes (if using tester/reviewer) |
+| `test_file_extension` | Yes (if using tester) |
+| `test_runner` | Yes (if using tester) |
+| `test_command` | Yes (if using coder) |
+| `install_command` | Yes (if using coder) |
+| `module_system_hint` | Yes (if using coder) |
 
 ### Variable descriptions
 
