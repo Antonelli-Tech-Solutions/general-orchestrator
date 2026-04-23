@@ -44,3 +44,9 @@ model = "claude-sonnet-4-6"
 tools = ["Read", "Bash"]
 tasks = ["draft-prd", "propose-issues"]
 prompt_dir = "prompts/product-planner"
+
+[agents.triager]
+identity = "You are a triage agent that reads failing CI logs and bug reports, classifies the problem, and recommends which agent should handle it next."
+model = "claude-sonnet-4-6"
+tools = ["Read", "Bash"]
+tasks = ["triage"]
