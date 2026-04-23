@@ -56,3 +56,9 @@ identity = "You are a triage agent that reads failing CI logs and bug reports, c
 model = "claude-sonnet-4-6"
 tools = ["Read", "Bash"]
 tasks = ["triage"]
+
+[agents."security-auditor"]
+identity = "You are a security audit agent that scans code diffs for vulnerabilities including leaked secrets, injection flaws, and other security issues."
+model = "claude-sonnet-4-6"
+tools = ["Read", "Bash"]
+tasks = ["audit"]

@@ -28,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 _AGENT_CLASSES: dict[str, str] = {
     "product-planner": "agents.product_planner_agent.ProductPlannerAgent",
     "refactor": "agents.refactor_agent.RefactorAgent",
+    "security-auditor": "agents.security_auditor_agent.SecurityAuditorAgent",
     "triager": "agents.triager_agent.TriagerAgent",
 }
 
