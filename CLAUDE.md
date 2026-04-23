@@ -83,6 +83,7 @@ If assigned an issue whose body says something like "Create GitHub issues for ev
 - **Async patterns** — agents use `async def run(self, context: dict) -> dict`. Keep this signature when adding new agents.
 - **Subprocess calls to `claude`** — only `agents/base_agent.py::run_claude` invokes `claude -p`. Don't spawn the CLI from elsewhere.
 - **Prompt files** are plain markdown in `defaults/prompts/<agent>/<task>.md`. Use `{{variable}}` for substitutions (never single braces — they conflict with JSON examples in prompts).
+- **Variable documentation rule** — every `{{variable}}` used in a prompt must be documented in `README.md` under the "Template variables" section. When you add a new variable (convention or runtime), update `README.md` in the same commit: add a row to the appropriate table with its name, where it is set, and what it is for.
 - **Output contract marker** — always exactly `<!-- ORCHESTRATOR OUTPUT CONTRACT — DO NOT MODIFY -->` (em-dash, not hyphen). The loader splits on this exact string.
 - **Orchestrator defaults namespace rule** — nothing under `defaults/` should be named the same as a file a target repo is expected to provide. Target repos own root-level `agents.toml`, `prompts/`, `.agents.md`; the orchestrator owns `defaults/agents.toml`, `defaults/prompts/`, `defaults/.agents.md`. Do not violate this, even temporarily.
 
