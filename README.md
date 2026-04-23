@@ -92,6 +92,8 @@ Populated by the orchestrator or individual agents at runtime. They come from th
 | Variable | Set by | Description |
 |---|---|---|
 | `{{issue_number}}` | `orchestrator.py` | GitHub issue number (integer). Available to all agents. |
+| `{{branch}}` | `coder_agent.py` | Name of the PR branch being worked on (e.g. `claude/issue-30-...`). Used by `coder/resolve-conflicts.md`. |
+| `{{default}}` | `coder_agent.py` | Name of the repo's default branch (e.g. `main`). Used by `coder/resolve-conflicts.md`. |
 | `{{issue_title}}` | `orchestrator.py` | GitHub issue title string. Used by `issue-decomposer/decompose.md`. |
 | `{{issue_body}}` | `orchestrator.py` | Full GitHub issue body text. Falls back to the title if the body is empty. Used by `issue-decomposer/decompose.md`. |
 | `{{issue_description}}` | `test_agent.py` | Alias for `issue_body` as passed downstream. Used by `coder/implement.md`, `tester/write-tests.md`, and `coder/fix-ci.md`. |
