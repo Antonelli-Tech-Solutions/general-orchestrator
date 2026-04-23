@@ -45,6 +45,12 @@ tools = ["Read", "Bash"]
 tasks = ["draft-prd", "propose-issues"]
 prompt_dir = "prompts/product-planner"
 
+[agents.refactor]
+identity = "You are a refactoring agent that performs structural changes to code (rename, extract function, split module) without changing observable behaviour."
+model = "claude-sonnet-4-6"
+tools = ["Read", "Edit", "Bash"]
+tasks = ["refactor", "fix-review"]
+
 [agents.triager]
 identity = "You are a triage agent that reads failing CI logs and bug reports, classifies the problem, and recommends which agent should handle it next."
 model = "claude-sonnet-4-6"
