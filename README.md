@@ -97,7 +97,7 @@ Populated by the orchestrator or individual agents at runtime. They come from th
 | `{{inline_findings}}` | `coder_agent.py` | Formatted list of low-effort inline review fixes the coder must apply immediately in the current PR. Used by `coder/fix-inline.md`. |
 | `{{brief}}` | `scripts/run_agent.py` | Product brief text passed as `--input` to `product-planner draft-prd`. Used by `product-planner/draft-prd.md`. |
 | `{{prd}}` | `scripts/run_agent.py` | Full PRD text passed as `--input` to `product-planner propose-issues`. Used by `product-planner/propose-issues.md`. |
-| `{{input}}` | `scripts/run_agent.py` | Generic input text passed as `--input` for tasks not listed in `_TASK_INPUT_VARS` (e.g. `triager triage`). Used by `triager/triage.md`. |
+| `{{input}}` | `scripts/run_agent.py` | Generic input text passed as `--input` for tasks not listed in `_TASK_INPUT_VARS` (e.g. `triager triage`). Used by `triager/triage.md`, `security-auditor/audit.md`. |
 
 ### Adding a new variable
 
