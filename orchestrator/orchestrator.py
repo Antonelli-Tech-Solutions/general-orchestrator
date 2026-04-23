@@ -28,7 +28,7 @@ def get_repo():
     return g.get_repo(os.getenv("GITHUB_REPO"))
 
 
-class SpadesOrchestrator:
+class Orchestrator:
 
     async def run_forever(self):
         print("[Orchestrator] Starting continuous processing loop...")

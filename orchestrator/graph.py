@@ -547,7 +547,7 @@ async def node_escalate(state: IssueState) -> dict:
                     body=(
                         f"{sub['body']}\n\n"
                         f"---\n"
-                        f"*Auto-created from #{issue_number} by the Spades Orchestrator "
+                        f"*Auto-created from #{issue_number} by the orchestrator "
                         f"after complexity assessment.*"
                     ),
                     labels=labels,
