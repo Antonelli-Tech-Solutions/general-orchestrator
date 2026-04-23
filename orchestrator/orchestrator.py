@@ -195,6 +195,10 @@ class SpadesOrchestrator:
                     current_issue = None
                     rate_limit_retries = 0
 
+                except (KeyboardInterrupt, asyncio.CancelledError):
+                    print("\n[Orchestrator] Interrupted — shutting down gracefully.")
+                    return
+
     async def _check_auto_approvals(self):
         """
         Scan for issues labelled both 'needs-approval' and 'auto-approve-split'.
